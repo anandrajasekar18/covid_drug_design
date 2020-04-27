@@ -28,9 +28,13 @@ def run_a_train_epoch(args, epoch, model, data_loader, loss_criterion, optimizer
         print('epoch {:d}/{:d}, batch {:d}/{:d}, loss {:.4f}'.format(
             epoch + 1, args['num_epochs'], batch_id + 1, len(data_loader), loss.item()))
         train_meter.update(logits, labels, masks)
-    train_score = np.mean(train_meter.compute_metric(args['metric_name']))
-    print('epoch {:d}/{:d}, training {} {:.4f}'.format(
-        epoch + 1, args['num_epochs'], args['metric_name'], train_score))
+    roc_auc,prc_auc = train_meter.compute_metric(args['metric_name'])
+    roc_auc = np.mean(roc_auc)
+    prc_auc = np.mean(prc_auc)
+    # print('epoch {:d}/{:d}, training {} {:.4f}'.format(
+    #     epoch + 1, args['num_epochs'], args['metric_name'], train_score))
+    print('epoch {:d}/{:d}, training {}={:.4f}, prc_auc={}'.format(
+        epoch + 1, args['num_epochs'], args['metric_name'], roc_auc, prc_auc))
 
 def run_an_eval_epoch(args, model, data_loader):
     model.eval()
@@ -42,7 +46,8 @@ def run_an_eval_epoch(args, model, data_loader):
             atom_feats, labels = atom_feats.to(args['device']), labels.to(args['device'])
             logits = model(bg, atom_feats)
             eval_meter.update(logits, labels, masks)
-    return np.mean(eval_meter.compute_metric(args['metric_name']))
+    roc_auc,prc_auc = eval_meter.compute_metric(args['metric_name'])
+    return np.mean(roc_auc),np.mean(prc_auc)
 
 def main(args):
     args['device'] = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -74,18 +79,18 @@ def main(args):
         run_a_train_epoch(args, epoch, model, train_loader, loss_criterion, optimizer)
 
         # Validation and early stop
-        val_score = run_an_eval_epoch(args, model, val_loader)
-        early_stop = stopper.step(val_score, model)
-        print('epoch {:d}/{:d}, validation {} {:.4f}, best validation {} {:.4f}'.format(
+        val_roc_auc, val_prc_auc = run_an_eval_epoch(args, model, val_loader)
+        early_stop = stopper.step(val_roc_auc, model)
+        print('epoch {:d}/{:d}, validation {}={:.4f}, best validation {}={:.4f}, prc_auc={}'.format(
             epoch + 1, args['num_epochs'], args['metric_name'],
-            val_score, args['metric_name'], stopper.best_score))
+            val_roc_auc, args['metric_name'], stopper.best_score,val_prc_auc))
         if early_stop:
             break
 
     if not args['pre_trained']:
         stopper.load_checkpoint(model)
-    test_score = run_an_eval_epoch(args, model, test_loader)
-    print('test {} {:.4f}'.format(args['metric_name'], test_score))
+    test_roc_auc, test_prc_auc = run_an_eval_epoch(args, model, test_loader)
+    print('test {}={:.4f}, prc_auc={}'.format(args['metric_name'], test_roc_auc, test_prc_auc))
 
 if __name__ == '__main__':
     import argparse
@@ -95,7 +100,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Molecule Classification')
     parser.add_argument('-m', '--model', type=str, default='GCN', choices=['GCN', 'GAT'],
                         help='Model to use')
-    parser.add_argument('-d', '--dataset', type=str, default='Ecoli', choices=['Tox21', 'Ecoli', 'Ecoli_MIT'],
+    parser.add_argument('-d', '--dataset', type=str, default='Ecoli', choices=['Tox21', 'Ecoli', 'Ecoli_MIT','pseud'],
                         help='Dataset to use')
     parser.add_argument('-p', '--pre-trained', action='store_true',
                         help='Whether to skip training and use a pre-trained model')

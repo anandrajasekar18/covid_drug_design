@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from dgl import model_zoo
 from dgl.data.chem import one_hot_encoding, RandomSplitter
 from dgl_mol import smiles_to_bigraph
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, precision_recall_curve, auc
 
 import dgl_classfiers
 
@@ -59,6 +59,32 @@ class Meter(object):
         self.y_pred.append(y_pred.detach().cpu())
         self.y_true.append(y_true.detach().cpu())
         self.mask.append(mask.detach().cpu())
+
+    def prc_auc_score(self):
+        """Compute prc-auc score for each task.
+
+        Returns
+        -------
+        list of float
+            prc-auc score for all tasks
+        """
+        mask = torch.cat(self.mask, dim=0)
+        y_pred = torch.cat(self.y_pred, dim=0)
+        y_true = torch.cat(self.y_true, dim=0)
+        # TODO: support categorical classes
+        # This assumes binary case only
+        y_pred = torch.sigmoid(y_pred)
+        n_tasks = y_true.shape[1]
+        scores = []
+        for task in range(n_tasks):
+            task_w = mask[:, task]
+            task_y_true = y_true[:, task][task_w != 0].numpy()
+            task_y_pred = y_pred[:, task][task_w != 0].numpy()
+            #NOTE Check multi_class type
+            precision, recall, _ = precision_recall_curve(task_y_true, task_y_pred)
+            scores.append(auc(recall,precision))
+        return scores
+
 
     def roc_auc_score(self):
         """Compute roc-auc score for each task.
@@ -148,7 +174,7 @@ class Meter(object):
             'Expect metric name to be "roc_auc", "l1" or "rmse", got {}'.format(metric_name)
         assert reduction in ['mean', 'sum']
         if metric_name == 'roc_auc':
-            return self.roc_auc_score()
+            return self.roc_auc_score(),self.prc_auc_score()
         if metric_name == 'l1':
             return self.l1_loss(reduction)
         if metric_name == 'rmse':
@@ -289,7 +315,7 @@ def load_dataset_for_classification(args):
             dataset, frac_train=args['frac_train'], frac_val=args['frac_val'],
             frac_test=args['frac_test'], random_state=args['random_seed'])
 
-    if args['dataset'] == 'Ecoli_MIT':
+    if args['dataset'] == 'Ecoli_MIT' or args['dataset'] == 'pseud':
         from ecoliDataset import Ecoli
         train_set = Ecoli(args['train_path'],smiles_to_bigraph, args['atom_featurizer'])
         test_set  = Ecoli(args['test_path'],smiles_to_bigraph, args['atom_featurizer'])

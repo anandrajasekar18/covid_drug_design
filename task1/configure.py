@@ -5,6 +5,48 @@ from functools import partial
 
 from utils import chirality
 
+GCN_pseud = {
+    'train_path': 'Data/pseudomonas/train_cv/fold_0/train.csv',
+    'test_path': 'Data/pseudomonas/train_cv/fold_0/test.csv',
+    'val_path': 'Data/pseudomonas/train_cv/fold_0/dev.csv',
+    'random_seed': 0,
+    'batch_size': 128,
+    'lr': 1e-3,
+    'num_epochs': 100,
+    'atom_data_field': 'h',
+    'frac_train': 0.8,
+    'frac_val': 0.1,
+    'frac_test': 0.1,
+    'in_feats': 74,
+    'gcn_hidden_feats': [64, 64],
+    'classifier_hidden_feats': 64,
+    'patience': 10,
+    'atom_featurizer': CanonicalAtomFeaturizer(),
+    'metric_name': 'roc_auc'
+}
+
+GAT_pseud = {
+    'train_path': 'Data/pseudomonas/train_cv/fold_0/train.csv',
+    'test_path': 'Data/pseudomonas/train_cv/fold_0/test.csv',
+    'val_path': 'Data/pseudomonas/train_cv/fold_0/dev.csv',
+    'random_seed': 0,
+    'batch_size': 128,
+    'lr': 1e-3,
+    'num_epochs': 100,
+    'atom_data_field': 'h',
+    'frac_train': 0.8,
+    'frac_val': 0.1,
+    'frac_test': 0.1,
+    'in_feats': 74,
+    'gat_hidden_feats': [32, 32],
+    'classifier_hidden_feats': 64,
+    'num_heads': [4, 4],
+    'patience': 10,
+    'atom_featurizer': CanonicalAtomFeaturizer(),
+    'metric_name': 'roc_auc'
+}
+
+
 GCN_Ecoli_MIT = {
     'train_path': 'Data/splits/ecoli_scaffold/train.csv',
     'test_path': 'Data/splits/ecoli_scaffold/test.csv',
@@ -194,15 +236,17 @@ AttentiveFP_Aromaticity = {
 }
 
 experiment_configures = {
+    'GCN_pseud':     GCN_pseud,
+    'GAT_pseud':     GAT_pseud,
     'GCN_Ecoli_MIT': GCN_Ecoli_MIT,
     'GAT_Ecoli_MIT': GAT_Ecoli_MIT,
-    'GCN_Ecoli': GCN_Ecoli,
-    'GAT_Ecoli': GAT_Ecoli,
-    'GCN_Tox21': GCN_Tox21,
-    'GAT_Tox21': GAT_Tox21,
-    'MPNN_Alchemy': MPNN_Alchemy,
-    'SCHNET_Alchemy': SCHNET_Alchemy,
-    'MGCN_Alchemy': MGCN_Alchemy,
+    'GCN_Ecoli':     GCN_Ecoli,
+    'GAT_Ecoli':     GAT_Ecoli,
+    'GCN_Tox21':     GCN_Tox21,
+    'GAT_Tox21':     GAT_Tox21,
+    'MPNN_Alchemy':  MPNN_Alchemy,
+    'SCHNET_Alchemy':SCHNET_Alchemy,
+    'MGCN_Alchemy':  MGCN_Alchemy,
     'AttentiveFP_Aromaticity': AttentiveFP_Aromaticity
 }
 
