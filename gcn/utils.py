@@ -4,6 +4,8 @@ import mol2graph
 import torch
 from torch_geometric.data import DataLoader
 from rdkit import Chem
+from rdkit.Chem import AllChem
+from rdkit.Chem import DataStructs
 from sklearn.metrics import roc_auc_score, precision_recall_curve, auc
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -33,8 +35,8 @@ def testModel(model,loader):
         y_pred.extend(np.array(pred))
         y_true.extend(np.array(data.y))
         outputs.append(output.detach().numpy())
-    ops = np.array(outputs).reshape((int(64*3),2))  
-    y_pred_prob = np.max(getProbs(ops),1)
+    ops = np.array(outputs).reshape((int(64*len(y_pred)//64),2))  
+    y_pred_prob = getProbs(ops)[:,1]
     return y_pred,y_true,y_pred_prob
 
 class myDataLoader():
@@ -95,6 +97,19 @@ class myDataLoader():
         smiles = [Chem.MolFromSmiles(mol) for mol in mols]
         X  = [mol2graph.mol2vec(m) for m in smiles]
         return X,y
+    
+    def MorganFeats(self,df):
+        mols = np.array(df['smiles'])
+        y = np.array(df['activity'])
+        smiles = [Chem.MolFromSmiles(mol) for mol in mols]
+        fps = [AllChem.GetMorganFingerprintAsBitVect(m,2) for m in smiles]
+        X = []
+        for fp in fps:
+            arr = np.zeros(0,)
+            DataStructs.ConvertToNumpyArray(fp, arr)
+            X.append(arr)
+        return np.asarray(X),y
+
 
     def makeDataLoader(self,X,y):
         """
@@ -108,5 +123,3 @@ class myDataLoader():
 
 
                 
-
-        
