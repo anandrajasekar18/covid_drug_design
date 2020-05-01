@@ -11,4 +11,4 @@
 7. networkx
 
 ##### Usage
-Specify the datasets location and hyperpameters in the `main_.py` file and run it. 
+Specify the datasets location and hyperparameters in the `main_.py` file and run it. 
