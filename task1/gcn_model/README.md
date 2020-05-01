@@ -5,10 +5,10 @@
 1. numpy
 2. pandas
 3. sklearn
-4. torch
+4. pytorch
 5. rdkit
 6. dgl
 7. networkx
 
-##### Prerequisites
+##### Usage
 Specify the datasets location and hyperpameters in the `main_.py` file and run it. 
