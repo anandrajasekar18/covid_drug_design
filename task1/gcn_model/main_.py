@@ -43,26 +43,32 @@ def preprocess_dataset(data):
 	return np.array(data_A).sum(axis=3), np.array(data_F), np.array(data_desc), data.activity
 
 
-train_data = pd.read_csv('train.csv')
-test_data = pd.read_csv('test.csv')
+if __name__ == '__main__':
+	train_data = pd.read_csv('train.csv')
+	test_data = pd.read_csv('test.csv')
+	hidden_layers=[30, 200, 500]
+	val_ratio=0.1
+	batch_size=64
+	lr=1e-2
+	early_stop=5
 
-print('Data imported...', train_data.shape, test_data.shape)
+	print('Data imported...', train_data.shape, test_data.shape)
 
-train_A, train_F, train_D, train_Y = preprocess_dataset(train_data)
-print('Preprocessed...',train_A.shape, train_F.shape, train_D.shape, train_Y.shape)
+	train_A, train_F, train_D, train_Y = preprocess_dataset(train_data)
+	print('Preprocessed...',train_A.shape, train_F.shape, train_D.shape, train_Y.shape)
 
-g, features, descriptors, labels = gcn_data_ready(train_A, train_F, train_D, train_Y)
+	g, features, descriptors, labels = gcn_data_ready(train_A, train_F, train_D, train_Y)
 
-print('\nData ready for training...')
-model = train_gcn(g, features, descriptors, labels, val_ratio=0.1, batch_size=64, lr=1e-2, early=5)
+	print('\nData ready for training...')
+	model = train_gcn(g, features, descriptors, labels, hidden_layers, val_ratio, batch_size, lr, early_stop)
 
-print('\nModel trained')
+	print('\nModel trained')
 
-test_A, test_F, test_D, test_Y = preprocess_dataset(test_data)
-test_g, test_features, test_descriptors, test_labels = gcn_data_ready(test_A, test_F, test_D, test_Y)
-model = load_model(model)
+	test_A, test_F, test_D, test_Y = preprocess_dataset(test_data)
+	test_g, test_features, test_descriptors, test_labels = gcn_data_ready(test_A, test_F, test_D, test_Y)
+	model = load_model(model)
 
-print('\nData ready for testing...', test_A.shape, test_F.shape, test_D.shape, test_Y.shape)
-test_acc, test_auc, test_loss = evaluate(model, test_g, test_features, test_descriptors, test_labels)
+	print('\nData ready for testing...', test_A.shape, test_F.shape, test_D.shape, test_Y.shape)
+	test_acc, test_auc, test_loss = evaluate(model, test_g, test_features, test_descriptors, test_labels)
 
-print("Test Loss ", np.round(test_loss, 4), "| Test Acc ", np.round(test_acc, 4), "| Test AUC ", np.round(test_auc, 4))
+	print("Test Loss ", np.round(test_loss, 4), "| Test Acc ", np.round(test_acc, 4), "| Test AUC ", np.round(test_auc, 4))

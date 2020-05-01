@@ -114,13 +114,13 @@ def load_model(model):
 	return model
 
 
-def train_gcn(graphs, node_feat, descriptors, labels, val_ratio=0.2, batch_size=64, lr=1e-2, early=7):
+def train_gcn(graphs, node_feat, descriptors, labels, hidden_layers=[30, 200, 500], val_ratio=0.2, batch_size=64, lr=1e-2, early=7):
 	train_mask = np.random.choice(range(len(graphs)), int((1 - val_ratio) * len(graphs)))
 	val_mask = [z for z in range(len(graphs)) if not z in train_mask]
 
 	_, natoms, nfeatures = node_feat.shape
 
-	net = Classifier(nfeatures, [30, 200, 500], descriptors.shape[1], 2)
+	net = Classifier(nfeatures, hidden_layers, descriptors.shape[1], 2)
 	print(net)
 	try:
 		net = load_model(net)
