@@ -5,12 +5,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import networkx as nx
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, precision_recall_curve, auc, make_scorer
 import math
 
 criterion = nn.BCEWithLogitsLoss()
 
-model_path = 'gcn_model.pt'
+model_path = 'gcn_model2.pt'
 
 
 class GCNLayer(nn.Module):
@@ -84,6 +84,10 @@ def get_dgl_graph(graph_data):
 		data += [dgl.DGLGraph(G)]
 	return np.array(data)
 
+def auprc_scorer(y_true, y_pred_proba):
+	pre, rec, thre = precision_recall_curve(y_true, y_pred_proba)
+	return auc(rec, pre)
+
 
 def evaluate(net, g, features, descriptors, labels):
 	net.eval()
@@ -91,18 +95,20 @@ def evaluate(net, g, features, descriptors, labels):
 	with torch.no_grad():
 		features = features.reshape((sh[0] * sh[1], sh[-1]))
 		logits = net(dgl.batch(g), features, descriptors)
-		_, indices = torch.max(logits, dim=1)
-		correct = torch.sum(indices == labels)
+		correct = torch.sum(torch.max(logits, dim=1)[1] == labels)
 		y_hot = F.one_hot(labels, 2)
 		loss = criterion(logits, y_hot.type_as(logits))
-		auc = roc_auc_score(labels, indices)
+		auprc = auprc_scorer(labels, F.softmax(logits)[:,1])
 		acc = correct.item() * 1.0 / len(labels)
-		return acc, auc, loss.detach().item()
+		return acc, auprc, loss.detach().item()
 
 
 def gcn_data_ready(graph_data, features, descriptors, labels):
 	features = torch.FloatTensor(features)
-	labels = torch.LongTensor(labels)
+	try:
+		labels = torch.LongTensor(labels)
+	except:
+		labels = None
 	descriptors = torch.FloatTensor(descriptors)
 	g = get_dgl_graph(graph_data)
 	return g, features, descriptors, labels
@@ -115,17 +121,24 @@ def load_model(model):
 
 
 def train_gcn(graphs, node_feat, descriptors, labels, hidden_layers=[30, 200, 500], val_ratio=0.2, batch_size=64, lr=1e-2, early=7):
-	train_mask = np.random.choice(range(len(graphs)), int((1 - val_ratio) * len(graphs)))
-	val_mask = [z for z in range(len(graphs)) if not z in train_mask]
+	val_mask = []
+	sampl = torch.sum(labels==1.0)*val_ratio
+	while len(val_mask)<=sampl:
+		z = np.random.choice(range(len(graphs)))
+		if labels[z]==1.0 and z not in val_mask:
+			val_mask.append(z)
+	while len(val_mask)<=val_ratio*len(labels):
+		z = np.random.choice(range(len(graphs)))
+		if labels[z]==0.0 and z not in val_mask:
+			val_mask.append(z)
+	train_mask = [z for z in range(len(graphs)) if not z in val_mask]
+
+	print(len(train_mask), len(val_mask))
 
 	_, natoms, nfeatures = node_feat.shape
 
 	net = Classifier(nfeatures, hidden_layers, descriptors.shape[1], 2)
 	print(net)
-	try:
-		net = load_model(net)
-	except:
-		pass
 
 	optimizer = torch.optim.Adam(net.parameters(), lr=lr)
 
@@ -143,21 +156,23 @@ def train_gcn(graphs, node_feat, descriptors, labels, hidden_layers=[30, 200, 50
 			optimizer.zero_grad()
 			loss.backward()
 			optimizer.step()
-			epoch_loss += loss.detach().item()
-		# if step % int(0.2 * len(train_mask) / batch_size) == 0:
-		# 	print('\tStep:', step, loss.detach().item())
-		epoch_loss /= (step + 1)
-		val_acc, val_auc, val_loss = evaluate(net, graphs[val_mask], node_feat[val_mask], descriptors[val_mask], labels[val_mask])
+			# if step % int(0.1 * len(train_mask) / batch_size) == 0:
+			# 	print('\tStep:', step, loss.detach().item())
+		train_acc, train_auprc, train_loss = evaluate(net, graphs[train_mask], node_feat[train_mask], descriptors[train_mask], labels[train_mask])
+		val_acc, val_auprc, val_loss = evaluate(net, graphs[val_mask], node_feat[val_mask], descriptors[val_mask], labels[val_mask])
 
 		print("Epoch", epoch,
-		      "| Train Loss ", np.round(epoch_loss, 4),
+		      "| Train Loss ", np.round(train_loss, 4),
+		      "| Train Acc ", np.round(train_acc, 4),
+		      "| Train AUPRC ", np.round(train_auprc, 4), end=' ')
+
+		print(
 		      "| Val Loss ", np.round(val_loss, 4),
 		      "| Val Acc ", np.round(val_acc, 4),
-		      "| Val AUC ", np.round(val_auc, 4), end=' ')
+		      "| Val AUPRC ", np.round(val_auprc, 4), end=' ')
 
 		if val_loss > best_loss:
-			if epoch > 10:
-				overfit += 1
+			overfit += 1
 			print('Overfit:', overfit)
 			if overfit == early:
 				break
