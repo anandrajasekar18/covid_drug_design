@@ -6,6 +6,8 @@ from torch_geometric.data import DataLoader
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from rdkit.Chem import DataStructs
+from rdkit import Chem
+from rdkit.Chem import AllChem
 from sklearn.metrics import roc_auc_score, precision_recall_curve, auc
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -21,23 +23,26 @@ def getAUC(y_pred,y_true):
     precision, recall, _ = precision_recall_curve(y_true, y_pred)
     prc_auc = auc(recall,precision)
     roc_auc = roc_auc_score(y_true, y_pred)
-    return roc_auc,prc_auc
+    return roc_auc,prc_auc,recall,precision
 
-def testModel(model,loader):
+def testModel(model,loader,batch_size=64):
     y_pred = []
     y_true = []
     outputs = []
     model.net.eval()
+    correct = 0
     for data in loader:
         data = data.to(device)
         output = model.net(data)
         pred = output.max(dim=1)[1]
+        correct += pred.eq(data.y).sum().item()
         y_pred.extend(np.array(pred))
         y_true.extend(np.array(data.y))
         outputs.append(output.detach().numpy())
-    ops = np.array(outputs).reshape((int(64*len(y_pred)//64),2))  
+    ops = np.array(outputs).reshape((int(batch_size*len(y_pred)//batch_size),2))  
     y_pred_prob = getProbs(ops)[:,1]
-    return y_pred,y_true,y_pred_prob
+    return y_pred,y_true,correct/len(loader.dataset),y_pred_prob
+
 
 class myDataLoader():
     def __init__(self,path=None, num_folds=10):
@@ -111,15 +116,12 @@ class myDataLoader():
         return np.asarray(X),y
 
 
-    def makeDataLoader(self,X,y):
+    def makeDataLoader(self,X,y,shuffle,batch_size=64):
         """
         Convert to PyTorch Dataloader
+        shuffle: bool
         """
         for i, data in enumerate(X):
             data.y = torch.tensor([y[i]],dtype=torch.long)
 
-        return DataLoader(X, batch_size=64, shuffle=True, drop_last=True)
-
-
-
-                
+        return DataLoader(X, batch_size=batch_size, shuffle=shuffle, drop_last=True)                
