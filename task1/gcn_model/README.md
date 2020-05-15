@@ -11,4 +11,11 @@
 7. networkx
 
 ##### Usage
-Specify the datasets location and hyperparameters in the `main_.py` file and run it. 
+Specify the arguments `<data_directory>` and `<experiment>` and execute the following command:
+
+  `python3 main_.py <data_directory> <experiment>` 
+
+Possible `<experiment>` values are: 
+* `skf`: Run cross validation with k=10 on Pseudomonas data
+* `fold`: Train model on their Folds data
+* `final`: Train best model on Pseudomonas data
