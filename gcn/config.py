@@ -16,7 +16,7 @@ parser.add_argument('--extra_path', type=str, default='64_dropout/',
 parser.add_argument('--n_features', type=int, default=75,
                     help='Number of features for nodes')
 
-parser.add_argument('--data_type', type=str, default='psuedo',choices=['psuedo','folds'],
+parser.add_argument('--data_type', type=str, default='SARS',choices=['psuedo','folds','SARS'],
                     help='Whether to use psudonomas/train.csv or the 10 fold cv splits')
 parser.add_argument('--num_folds', type=int, default=10,
                     help='Number of folds for CV')
