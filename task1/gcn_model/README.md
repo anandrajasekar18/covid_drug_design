@@ -18,4 +18,4 @@ Specify the arguments `<data_directory>` and `<experiment>` and execute the foll
 Possible `<experiment>` values are: 
 * `skf`: Run cross validation with k=10 on Pseudomonas data
 * `fold`: Train model on their Folds data
-* `final`: Train best model on Pseudomonas data
+* `final`: Train best model on Pseudomonas data and make predictions on their Test data
