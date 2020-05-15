@@ -5,9 +5,9 @@
 1. numpy
 2. pandas
 3. sklearn
-4. pytorch
+4. pytorch (Cuda)
 5. rdkit
-6. dgl
+6. dgl (Cuda)
 7. networkx
 
 ##### Usage
