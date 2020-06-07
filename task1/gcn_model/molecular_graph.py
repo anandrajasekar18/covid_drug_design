@@ -58,9 +58,9 @@ class mol_graph:
 		for atom in mol.GetAtoms():
 			feat_arr = self.get_node_feat(atom)
 			self.F[0, feat_arr[0], :] = feat_arr[1]
-		n_atoms = mol.GetNumAtoms()
-		for i in range(self.n_bonds):
-			self.A[0, :n_atoms, :n_atoms, i] = np.eye(n_atoms)
+		# n_atoms = mol.GetNumAtoms()
+		# for i in range(self.n_bonds):
+		# 	self.A[0, :n_atoms, :n_atoms, i] = np.eye(n_atoms)
 
 		for bond in mol.GetBonds():
 			beginidx = bond.GetBeginAtomIdx()
@@ -87,7 +87,7 @@ def get_descriptors(smiles):
 def get_max_atom(train_data):
 	smiles_ls = train_data.smiles.values
 	atoms_ls = []
-	for smiles in smiles_ls:
+	for i, smiles in enumerate(smiles_ls):
 		mol = Chem.MolFromSmiles(smiles)
 		atoms_ls.append(mol.GetNumAtoms())
 	return max(atoms_ls)
@@ -99,19 +99,23 @@ def preprocess_dataset(data, cluster=None):
 
 	max_atoms = get_max_atom(data)
 	graph_gen = mol_graph(max_atoms)
-
-	for smiles in data.smiles:
+	for i, smiles in enumerate(data.smiles):
+		if i%int(0.1*len(data))==0:
+			print(100*i/len(data), '% Done from', len(data))
 		A, F = graph_gen.get_graph(smiles)
 		D = get_descriptors(smiles)
 		data_A += [A.copy()[0]]
 		data_F += [F.copy()[0]]
 		data_desc += [D.copy()[0]]
 	data_A = np.array(data_A)
+	print(data_A.shape)
 	sh = data_A.shape
 	if cluster is None:
 		dataset = data_A.reshape((sh[0] * sh[1] * sh[2], sh[3]))
 		dataset = dataset[~np.all(dataset == 0, axis=1)]
+		print('Get clusters')
 		cluster = np.unique(dataset, axis=0)
+		del dataset
 		print(cluster, len(cluster))
 	new_data = np.zeros((sh[0], sh[1], sh[2]))
 	for i, row in enumerate(cluster):

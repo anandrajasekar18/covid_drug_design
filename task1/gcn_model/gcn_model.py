@@ -51,6 +51,7 @@ class GCN(nn.Module):
 		self.lin2 = nn.Linear(1000, 500)
 		self.lin3 = nn.Linear(500, 100)
 		self.lin4 = nn.Linear(100, 20)
+		self.drop = nn.Dropout(0.2)
 		self.classify = nn.Linear(20, n_classes)
 
 	def forward(self, g, features, descriptors):
@@ -59,17 +60,17 @@ class GCN(nn.Module):
 		for layer in self.layers:
 			h = layer(g, h)
 		g.ndata['h'] = h
-		h = dgl.mean_nodes(g, 'h')
+		feats = dgl.mean_nodes(g, 'h')
 
 		# Concat (GCN_feat, descriptors)
-		h = torch.cat((h, descriptors), 1)
+		h = torch.cat((feats, descriptors), 1)
 
 		# Classify
-		h = F.relu(self.lin1(h))
-		h = F.relu(self.lin2(h))
-		h = F.relu(self.lin3(h))
-		h = F.relu(self.lin4(h))
-		return F.relu(self.classify(h))
+		h = self.drop(F.relu(self.lin1(h)))
+		h = self.drop(F.relu(self.lin2(h)))
+		h = self.drop(F.relu(self.lin3(h)))
+		h = self.drop(F.relu(self.lin4(h)))
+		return self.classify(h), feats
 
 
 class GCN_des(nn.Module):
@@ -82,6 +83,7 @@ class GCN_des(nn.Module):
 
 		self.lin1 = nn.Linear(hidden_dim[-1], 10)
 		self.lin2 = nn.Linear(10, 5)
+		self.drop = nn.Dropout(0.2)
 		self.classify = nn.Linear(5, n_classes)
 
 	def forward(self, g, features, descriptors):
@@ -90,12 +92,12 @@ class GCN_des(nn.Module):
 		for layer in self.layers:
 			h = layer(g, h)
 		g.ndata['h'] = h
-		h = dgl.mean_nodes(g, 'h')
+		feats = dgl.mean_nodes(g, 'h')
 
 		# Concat (GCN_feat, descriptors)
 		# h = torch.cat((h, descriptors), 1)
 
 		# Classify
-		h = F.relu(self.lin1(h))
-		h = F.relu(self.lin2(h))
-		return F.relu(self.classify(h))
+		h = self.drop(F.relu(self.lin1(feats)))
+		h = self.drop(F.relu(self.lin2(h)))
+		return self.classify(h), feats

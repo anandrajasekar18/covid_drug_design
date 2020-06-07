@@ -69,6 +69,7 @@ class RGCN(nn.Module):
 		self.lin1 = nn.Linear(hidden_dim[-1] + n_desc, 1000)
 		self.lin2 = nn.Linear(1000, 500)
 		self.lin3 = nn.Linear(500, 100)
+		self.drop = nn.Dropout(0.1)
 		self.lin4 = nn.Linear(100, 20)
 		self.classify = nn.Linear(20, n_classes)
 
@@ -77,17 +78,17 @@ class RGCN(nn.Module):
 		for layer in self.layers:
 			layer(g, features)
 
-		h = dgl.mean_nodes(g, 'h')
+		feats = dgl.mean_nodes(g, 'h')
 
 		# Concat (GCN_feat, descriptors)
-		h = torch.cat((h, descriptors), 1)
+		h = torch.cat((feats, descriptors), 1)
 
 		# Classify
-		h = F.relu(self.lin1(h))
-		h = F.relu(self.lin2(h))
-		h = F.relu(self.lin3(h))
-		h = F.relu(self.lin4(h))
-		return F.relu(self.classify(h))
+		h = self.drop(F.relu(self.lin1(h)))
+		h = self.drop(F.relu(self.lin2(h)))
+		h = self.drop(F.relu(self.lin3(h)))
+		out = self.drop(F.relu(self.lin4(h)))
+		return self.classify(out), out
 
 
 class RGCN_des(nn.Module):
@@ -100,6 +101,7 @@ class RGCN_des(nn.Module):
 			self.layers.append(RGCNLayer(hid, hidden_dim[i + 1], num_rels, 11, activation=F.relu))
 		self.lin1 = nn.Linear(hidden_dim[-1], 10)
 		self.lin2 = nn.Linear(10, 5)
+		self.drop = nn.Dropout(0.2)
 		self.classify = nn.Linear(5, n_classes)
 
 	def forward(self, g, features, descriptors):
@@ -107,12 +109,12 @@ class RGCN_des(nn.Module):
 		for layer in self.layers:
 			layer(g, features)
 
-		h = dgl.mean_nodes(g, 'h')
+			feats = dgl.mean_nodes(g, 'h')
 
 		# Concat (GCN_feat, descriptors)
 		# h = torch.cat((h, descriptors), 1)
 
 		# Classify
-		h = F.relu(self.lin1(h))
-		h = F.relu(self.lin2(h))
-		return F.relu(self.classify(h))
+		h = self.drop(F.relu(self.lin1(feats)))
+		h = self.drop(F.relu(self.lin2(h)))
+		return self.classify(h), feats
